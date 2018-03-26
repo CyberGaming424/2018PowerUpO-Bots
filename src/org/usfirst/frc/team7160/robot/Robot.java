@@ -8,13 +8,7 @@
 
 package org.usfirst.frc.team7160.robot;
 
-import org.opencv.core.Mat;
-import org.opencv.imgproc.Imgproc;
-
 import com.ctre.phoenix.motorcontrol.can.WPI_TalonSRX;
-
-import edu.wpi.cscore.CvSink;
-import edu.wpi.cscore.CvSource;
 import edu.wpi.cscore.UsbCamera;
 import edu.wpi.cscore.VideoMode.PixelFormat;
 import edu.wpi.first.wpilibj.ADXRS450_Gyro;
@@ -29,7 +23,6 @@ import edu.wpi.first.wpilibj.Spark;
 import edu.wpi.first.wpilibj.SpeedControllerGroup;
 import edu.wpi.first.wpilibj.Timer;
 import edu.wpi.first.wpilibj.drive.MecanumDrive;
-import edu.wpi.first.wpilibj.smartdashboard.SendableChooser;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 
 public class Robot extends IterativeRobot {
@@ -37,6 +30,10 @@ public class Robot extends IterativeRobot {
 	DigitalInput grabberSwitch = new DigitalInput(9);
 	DigitalInput liftUpSwitch = new DigitalInput(8);
 	DigitalInput liftDownSwitch = new DigitalInput(7);
+	//
+	// Auton Selector
+	DigitalInput leftAuton = new DigitalInput(4);
+	DigitalInput rightAuton = new DigitalInput(3);
 	//
 	// Creates objects for the motor controllers for driving
 	WPI_TalonSRX frontLeft = new WPI_TalonSRX(2);
@@ -74,42 +71,39 @@ public class Robot extends IterativeRobot {
 	//
 	// Timer object
 	Timer timer = new Timer();
-	//
+	// Auton info things
+	String gameData;
+	int step = 1;
 	DriverStation fms = DriverStation.getInstance();
-	private static final String kMiddleAuto = "Auton if in the middle position";
-	private static final String kLeftAuto = "Auton if in the left position";
-	private static final String kRightAuto = "Auton if in the right position";
-	private String m_autoSelected;
-	private SendableChooser<String> m_chooser = new SendableChooser<>();
 	double time;
 	double gyroValue = 0.0;
+	final double switchHeight = 10.0;
+	final double scaleHeight = 20.0;
+	double autonHeight;
+	int leftAuto = 1;
+	int rightAuto = 1;
+	//
 
 	public void robotInit() {
-		mainDrive.setSafetyEnabled(false);
-		m_chooser.addDefault("Auton if in the middle position", kMiddleAuto);
-		m_chooser.addObject("Auton if in the left position", kLeftAuto);
-		m_chooser.addObject("Auton if in the right position", kRightAuto);
+		// mainDrive.setSafetyEnabled(false);
 		SmartDashboard.putNumber("Gyro", gyro.getAngle());
 		gyro.calibrate();
 		timer.reset();
 
 		new Thread(() -> {
 			UsbCamera camera = CameraServer.getInstance().startAutomaticCapture();
-			// camera.setResolution(320, 480);
-			// camera.setFPS(15); //
 			camera.setVideoMode(PixelFormat.kMJPEG, 320, 240, 15);
-
-			/*CvSink cvSink = CameraServer.getInstance().getVideo();
-			CvSource outputStream = CameraServer.getInstance().putVideo("Blur", 640, 480);
-
-			Mat source = new Mat();
-			Mat output = new Mat();
-
-			while (!Thread.interrupted()) {
-				cvSink.grabFrame(source);
-				Imgproc.cvtColor(source, output, Imgproc.COLOR_BGR2GRAY);
-				outputStream.putFrame(output);
-			}*/
+			// computer vision code not used
+			/*
+			 * CvSink cvSink = CameraServer.getInstance().getVideo(); CvSource outputStream
+			 * = CameraServer.getInstance().putVideo("Blur", 640, 480);
+			 * 
+			 * Mat source = new Mat(); Mat output = new Mat();
+			 * 
+			 * while (!Thread.interrupted()) { cvSink.grabFrame(source);
+			 * Imgproc.cvtColor(source, output, Imgproc.COLOR_BGR2GRAY);
+			 * outputStream.putFrame(output); }
+			 */
 		}).start();
 
 		grabber1.setInverted(true);
@@ -123,11 +117,12 @@ public class Robot extends IterativeRobot {
 		timer.reset();
 		timer.start();
 		gyro.reset();
-
+		gameData = DriverStation.getInstance().getGameSpecificMessage();
+		liftPID.enable();
 	}
 
 	public void autonomousPeriodic() {
-
+		lift.set(-liftPID.get());
 		if (gyro.getAngle() >= 0.0) {
 			gyroValue = gyro.getAngle();
 		} else if (gyro.getAngle() < 0.0) {
@@ -137,41 +132,104 @@ public class Robot extends IterativeRobot {
 			gyro.reset();
 		}
 		SmartDashboard.putNumber("Gyro", Math.round(gyroValue));
-		m_autoSelected = m_chooser.getSelected();
 		time = timer.get();
-		SmartDashboard.putNumber("Gyro", gyro.getAngle());
-		/*
-		 * switch (m_autoSelected) { case kLeftAuto: leftAuto(); break;
-		 * 
-		 * case kRightAuto: rightAuto(); break;
-		 * 
-		 * case kMiddleAuto: middleAuto(); break; }
-		 */
-		Auton();
+		if (leftAuton.get()) {
+			switch (leftAuto) {
+			case 1:
+				liftPID.setSetpoint(switchHeight);
+				leftAuto = 2;
+				break;
+			case 2:
+				leftAuto();
+				break;
+			}
+		} else if (rightAuton.get())
 
-	}
-
-	private void Auton() {
-		int step;
-		step = 1;
-		/*
-		 * switch (step) { case 1: if (timer.get() <= 2) { mainDrive.driveCartesian(0,
-		 * -.2, 0); }
-		 * 
-		 * step = 2; break; case 2: mainDrive.driveCartesian(0, 0, 0); if
-		 * (gyro.getAngle() >= 3) { mainDrive.driveCartesian(0, 0, -.2); } step = 3;
-		 * break;
-		 * 
-		 * case 3: if (gyro.getAngle() >= -3) { mainDrive.driveCartesian(0, 0, .2); }
-		 * step = 3; break; }
-		 */
-		if (timer.get() <= 8) {
-			mainDrive.driveCartesian(0, -.2, -.01);
+		{
+			switch (leftAuto) {
+			case 1:
+				liftPID.setSetpoint(switchHeight);
+				leftAuto = 2;
+				break;
+			case 2:
+				rightAuto();
+				break;
+			}
 		} else {
-			mainDrive.driveCartesian(0, 0, 0);
+			middleAuto();
 		}
 
 	}
+
+	// Auton functions
+	private void switchAuton() {
+		autonHeight = switchHeight;
+		switch (step) {
+		case 1:
+			if (time < 5)
+				mainDrive.driveCartesian(0, -.4, 0);
+			else {
+				mainDrive.driveCartesian(0, 0, 0);
+				step = 2;
+			}
+			break;
+		case 2:
+			if (time < 8 && time >= 5) {
+				grabber.set(1);
+			} else {
+				grabber.set(0);
+			}
+			break;
+		}
+	}
+
+	private void scaleAuton() {
+		autonHeight = scaleHeight;
+		switch (step) {
+		case 1:
+			if (time < 7)
+				mainDrive.driveCartesian(0, -.4, 0);
+			else {
+				mainDrive.driveCartesian(0, 0, 0);
+				step = 2;
+			}
+			break;
+		case 2:
+			if (time < 10 && time >= 7)
+				grabber.set(.5);
+			else {
+				grabber.set(0);
+			}
+			break;
+		}
+	}
+
+	private void middleAuto() {
+		switch (step) {
+
+		}
+	}
+
+	private void rightAuto() {
+		if (gameData.length() > 0) {
+			if (gameData.charAt(0) == 'L') {
+				switchAuton();
+			} else if (gameData.charAt(0) == 'R' && gameData.charAt(1) == 'L') {
+				scaleAuton();
+			}
+		}
+	}
+
+	private void leftAuto() {
+
+	}
+	// Back up auton
+	/*
+	 * private void Auton() { if (timer.get() <= 8) { mainDrive.driveCartesian(0,
+	 * -.2, -.01); } else { mainDrive.driveCartesian(0, 0, 0); }
+	 * 
+	 * }
+	 */
 
 	public void teleopPeriodicInit() {
 		gyro.reset();
@@ -218,7 +276,7 @@ public class Robot extends IterativeRobot {
 		} else {
 			liftPID.enable();
 			lift.set(-liftPID.get());
-			//lift.set(0);
+			// lift.set(0);
 		}
 
 		//
@@ -226,6 +284,7 @@ public class Robot extends IterativeRobot {
 		// The code used for our grabber
 		double grabberIn = -1;
 		if (!(grabberSwitch.get()))
+			
 			grabberIn = 0;
 		if (joy2.getPOV() == 0)
 			grabber.set(1);
@@ -244,87 +303,11 @@ public class Robot extends IterativeRobot {
 
 	}
 
-	// Auton functions
-	private void middleAuto() {
-		int step;
-		step = 1;
-		switch (step) {
-		case 1:
-			if (timer.get() >= 3)
-				mainDrive.driveCartesian(0, 0, 0);
-			step = 2;
-			break;
-
-		case 2:
-			if (gyro.getAngle() >= 90 || timer.get() >= 4)
-				mainDrive.driveCartesian(0, .25, 0);
-			step = 3;
-			break;
-
-		case 3:
-			if (gyro.getAngle() >= 180 || timer.get() >= 8)
-				;
-			mainDrive.driveCartesian(.25, 0, 0);
-			step = 4;
-			break;
-		case 4:
-			if (gyro.getAngle() >= 90 || timer.get() >= 13)
-				mainDrive.driveCartesian(0, .25, 0);
-			break;
-
-		default:
-			if (timer.get() >= 15)
-				;
-			mainDrive.driveCartesian(0, 0, .5);
-			break;
-		}
-	}
-
-	private void rightAuto() {
-		int step;
-		step = 1;
-		gyro.reset();
-		switch (step) {
-		case 1:
-			if (gyro.getAngle() <= 3 || timer.get() >= 2 || gyro.getAngle() >= -3)
-				;
-			mainDrive.driveCartesian(0, .25, 0);
-			step = 2;
-			break;
-		case 2:
-
-		}
-
-	}
-
-	private void leftAuto() {
-		if (gyro.getAngle() >= 90 || timer.get() > 5)
-			mainDrive.driveCartesian(0, .25, 0);
-		else
-			mainDrive.driveCartesian(0, 0, 0);
-	}
-
 	public void testInit() {
 	}
 
 	@Override
 	public void testPeriodic() {
-
-		// System.out.println(test);
-
-		/*
-		 * if (a == 1) { timer.start(); gyro.reset(); a = 2; }
-		 * 
-		 * if (gyro.getAngle() >= 0.0) { gyroValue = Math.round(gyro.getAngle()); } else
-		 * if (gyro.getAngle() < 0.0) { gyroValue = 360 + Math.round(gyro.getAngle()); }
-		 * if (gyroValue >= 360 || gyroValue <= 0.0) { gyro.reset(); }
-		 * 
-		 * if (gyroValue <= 275.0 || timer.get() >= 10.0) { mainDrive.driveCartesian(0,
-		 * 0, 0); } else { mainDrive.driveCartesian(0, 0, -0.2); }
-		 * 
-		 * 
-		 * System.out.println(gyroValue);
-		 */
 
 	}
 }
