@@ -9,6 +9,8 @@
 package org.usfirst.frc.team7160.robot;
 
 import com.ctre.phoenix.motorcontrol.can.WPI_TalonSRX;
+import com.ctre.phoenix.motorcontrol.can.WPI_VictorSPX;
+
 import edu.wpi.cscore.UsbCamera;
 import edu.wpi.cscore.VideoMode.PixelFormat;
 import edu.wpi.first.wpilibj.ADXRS450_Gyro;
@@ -50,10 +52,14 @@ public class Robot extends IterativeRobot {
 	WPI_TalonSRX lift2 = new WPI_TalonSRX(6);
 	Spark grabber1 = new Spark(0);
 	Spark grabber2 = new Spark(1);
+	WPI_VictorSPX grabberAngleController = new WPI_VictorSPX(7);
 	//
 	// Encoder and double value for the encoder
+	Encoder grabberEncoder = new Encoder(4, 5, false, Encoder.EncodingType.k4X);
+	double grabberHoldDistance;
 	Encoder liftEncoder = new Encoder(6, 5, false, Encoder.EncodingType.k4X);
 	double liftHoldDistance;
+	PIDController grabberPID = new PIDController(0.0005, 0, 0, grabberEncoder, grabberAngleController);
 	//
 	// Spark lock = new Spark(4);3
 	// The object that handles the gyroscope
@@ -110,6 +116,8 @@ public class Robot extends IterativeRobot {
 		liftPID.setOutputRange(-0.3, .3);
 		PIDStore.setDisabled();
 		liftPID.enable();
+		grabberPID.setOutputRange(-0.1, .1);
+		grabberPID.enable();
 	}
 
 	@Override
@@ -243,6 +251,8 @@ public class Robot extends IterativeRobot {
 		System.out.println(liftHoldDistance);
 		lift1.configOpenloopRamp(.2, 0);
 		lift2.configOpenloopRamp(.2, 0);
+		double grabberAngleDownSpeed = .2;
+		double grabberAngleUpSpeed = .4;
 		// Drive code
 		double x = joy1.getRawAxis(1);
 		double y = joy1.getRawAxis(0);
@@ -292,6 +302,22 @@ public class Robot extends IterativeRobot {
 			grabber.set(grabberIn);
 		else
 			grabber.set(0);
+		
+		if (joy2.getRawButton(3)) {
+			grabberPID.disable();
+			grabberAngleController.set(-grabberAngleDownSpeed);
+			grabberHoldDistance = grabberEncoder.getDistance();
+			grabberPID.setSetpoint(grabberEncoder.getDistance());
+		} else if (joy2.getRawButton(4)) {
+			grabberPID.disable();
+			grabberAngleController.set(grabberAngleUpSpeed);
+			grabberHoldDistance = grabberEncoder.getDistance();
+			grabberPID.setSetpoint(grabberEncoder.getDistance());
+		} else {
+			grabberPID.enable();
+			grabberAngleController.set(-grabberPID.get());
+			//grabberAngleController.set(0);
+		}
 
 		//
 
