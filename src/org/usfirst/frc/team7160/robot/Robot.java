@@ -28,7 +28,7 @@ import edu.wpi.first.wpilibj.drive.MecanumDrive;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 
 public class Robot extends IterativeRobot {
-	// Limit switched
+	// Limit switches
 	DigitalInput grabberSwitch = new DigitalInput(9);
 	DigitalInput liftUpSwitch = new DigitalInput(8);
 	DigitalInput liftDownSwitch = new DigitalInput(7);
@@ -54,12 +54,9 @@ public class Robot extends IterativeRobot {
 	Spark grabber2 = new Spark(1);
 	WPI_VictorSPX grabberAngleController = new WPI_VictorSPX(7);
 	//
-	// Encoder and double value for the encoder
-	Encoder grabberEncoder = new Encoder(4, 5, false, Encoder.EncodingType.k4X);
-	double grabberHoldDistance;
+	// Encoder double value 
 	Encoder liftEncoder = new Encoder(6, 5, false, Encoder.EncodingType.k4X);
 	double liftHoldDistance;
-	PIDController grabberPID = new PIDController(0.0005, 0, 0, grabberEncoder, grabberAngleController);
 	//
 	// Spark lock = new Spark(4);3
 	// The object that handles the gyroscope
@@ -85,7 +82,6 @@ public class Robot extends IterativeRobot {
 	double gyroValue = 0.0;
 	final double switchHeight = 10.0;
 	final double scaleHeight = 20.0;
-	double autonHeight;
 	int leftAuto = 1;
 	int rightAuto = 1;
 	//
@@ -116,121 +112,107 @@ public class Robot extends IterativeRobot {
 		liftPID.setOutputRange(-0.3, .3);
 		PIDStore.setDisabled();
 		liftPID.enable();
-		grabberPID.setOutputRange(-0.1, .1);
-		grabberPID.enable();
-	}
-
-	@Override
-	public void autonomousInit() {
-		timer.reset();
-		timer.start();
-		gyro.reset();
-		gameData = DriverStation.getInstance().getGameSpecificMessage();
-		liftPID.enable();
 	}
 
 	public void autonomousPeriodic() {
-		lift.set(-liftPID.get());
-		if (gyro.getAngle() >= 0.0) {
+		/*if (gyro.getAngle() >= 0.0) {
 			gyroValue = gyro.getAngle();
 		} else if (gyro.getAngle() < 0.0) {
 			gyroValue = 360 + gyro.getAngle();
 		}
 		if (gyroValue >= 360 || gyroValue <= 0.0) {
 			gyro.reset();
-		}
-		SmartDashboard.putNumber("Gyro", Math.round(gyroValue));
+		}*/
+		SmartDashboard.putNumber("Gyro", Math.round(gyro.getAngle()));
 		time = timer.get();
-		if (leftAuton.get()) {
-			switch (leftAuto) {
-			case 1:
-				liftPID.setSetpoint(switchHeight);
-				leftAuto = 2;
-				break;
-			case 2:
-				leftAuto();
-				break;
-			}
-		} else if (rightAuton.get())
-
-		{
-			switch (leftAuto) {
-			case 1:
-				liftPID.setSetpoint(switchHeight);
-				leftAuto = 2;
-				break;
-			case 2:
-				rightAuto();
-				break;
-			}
-		} else {
+		SmartDashboard.putNumber("time: ", time);
+		SmartDashboard.putNumber("step: ", step);
+		if (!leftAuton.get())
+			leftAuto();
+		else if(!rightAuton.get())
+			rightAuto();
+		else
 			middleAuto();
-		}
 
 	}
 
 	// Auton functions
-	private void switchAuton() {
-		autonHeight = switchHeight;
-		switch (step) {
-		case 1:
-			if (time < 5)
-				mainDrive.driveCartesian(0, -.4, 0);
-			else {
-				mainDrive.driveCartesian(0, 0, 0);
-				step = 2;
-			}
-			break;
-		case 2:
-			if (time < 8 && time >= 5) {
-				grabber.set(1);
-			} else {
-				grabber.set(0);
-			}
-			break;
-		}
-	}
-
-	private void scaleAuton() {
-		autonHeight = scaleHeight;
-		switch (step) {
-		case 1:
-			if (time < 7)
-				mainDrive.driveCartesian(0, -.4, 0);
-			else {
-				mainDrive.driveCartesian(0, 0, 0);
-				step = 2;
-			}
-			break;
-		case 2:
-			if (time < 10 && time >= 7)
-				grabber.set(.5);
-			else {
-				grabber.set(0);
-			}
-			break;
-		}
-	}
 
 	private void middleAuto() {
-		switch (step) {
-
-		}
+		if (timer.get() >= 3) 
+			mainDrive.driveCartesian(0, 0, 0);
+		else
+			mainDrive.driveCartesian(0, .3, 0);
 	}
 
 	private void rightAuto() {
-		if (gameData.length() > 0) {
-			if (gameData.charAt(0) == 'L') {
-				switchAuton();
-			} else if (gameData.charAt(0) == 'R' && gameData.charAt(1) == 'L') {
-				scaleAuton();
+		switch (step) {
+		case 1:
+			mainDrive.driveCartesian(0, .3, 0);
+			if (timer.get() >= 4.5) {
+				mainDrive.driveCartesian(0, 0, 0);
+				gyro.reset();
+				step++;
+
 			}
+			break;
+
+		case 2:
+			if (gameData.charAt(0) == 'R') {
+				if (gyro.getAngle() >= -70.0)
+					mainDrive.driveCartesian(0, 0, -.3);
+				else
+					mainDrive.driveCartesian(0, 0, 0);
+				if (gyro.getAngle() >= -95 && gyro.getAngle() <= -70) {
+					timer.reset();
+					time = 0;
+					step = 3;
+				}
+			}
+			break;
+
+		case 3:
+			if (time <= 1)
+				mainDrive.driveCartesian(0, .3, 0);
+			break;
+
 		}
 	}
 
 	private void leftAuto() {
+		switch (step) {
+		case 1:
+			mainDrive.driveCartesian(0, .3, 0);
+			if (timer.get() >= 4.5) {
+				mainDrive.driveCartesian(0, 0, 0);
+				gyro.reset();
+				step++;
 
+			}
+			break;
+
+		case 2:
+			if (gameData.charAt(0) == 'L') {
+				if (gyro.getAngle() <= 70.0)
+					mainDrive.driveCartesian(0, 0, .3);
+				else
+					mainDrive.driveCartesian(0, 0, 0);
+				if (gyroValue <= 95 && gyroValue >= 70) {
+					timer.reset();
+					time = 0;
+					step = 3;
+				}
+			}
+			break;
+
+		case 3:
+			if (time <= 1)
+				mainDrive.driveCartesian(0, .3, 0);
+			break;
+
+		}
 	}
+
 	// Back up auton
 	/*
 	 * private void Auton() { if (timer.get() <= 8) { mainDrive.driveCartesian(0,
@@ -247,12 +229,10 @@ public class Robot extends IterativeRobot {
 
 	public void teleopPeriodic() {
 		SmartDashboard.putNumber("Lift PID", liftPID.get());
-		System.out.println(liftEncoder.get());
-		System.out.println(liftHoldDistance);
 		lift1.configOpenloopRamp(.2, 0);
 		lift2.configOpenloopRamp(.2, 0);
 		double grabberAngleDownSpeed = .2;
-		double grabberAngleUpSpeed = .4;
+		double grabberAngleUpSpeed = .8;
 		// Drive code
 		double x = joy1.getRawAxis(1);
 		double y = joy1.getRawAxis(0);
@@ -288,13 +268,11 @@ public class Robot extends IterativeRobot {
 			lift.set(-liftPID.get());
 			// lift.set(0);
 		}
-//
 		//
 
 		// The code used for our grabber
-		double grabberIn = -1;
+		int grabberIn = -1;
 		if (!(grabberSwitch.get()))
-			
 			grabberIn = 0;
 		if (joy2.getPOV() == 0)
 			grabber.set(1);
@@ -304,19 +282,11 @@ public class Robot extends IterativeRobot {
 			grabber.set(0);
 		
 		if (joy2.getRawButton(3)) {
-			grabberPID.disable();
 			grabberAngleController.set(-grabberAngleDownSpeed);
-			grabberHoldDistance = grabberEncoder.getDistance();
-			grabberPID.setSetpoint(grabberEncoder.getDistance());
 		} else if (joy2.getRawButton(4)) {
-			grabberPID.disable();
 			grabberAngleController.set(grabberAngleUpSpeed);
-			grabberHoldDistance = grabberEncoder.getDistance();
-			grabberPID.setSetpoint(grabberEncoder.getDistance());
 		} else {
-			grabberPID.enable();
-			grabberAngleController.set(-grabberPID.get());
-			//grabberAngleController.set(0);
+			grabberAngleController.set(0);
 		}
 
 		//
