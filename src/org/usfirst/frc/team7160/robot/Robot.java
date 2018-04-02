@@ -1,11 +1,7 @@
-/*-Working------------------------------------------------------------------------*/
-/* Copyright (c) 2017-2018 FIRST. All Rights Reserved.                        */
-/* Open Source Software - may be modified and shared by FRC teams. The code   */
-/* must be accompanied by the FIRST BSD license file in the root directory of */
-/* the project.                       
- * Current code                                        */
-/*----------------------------------------------------------------------------*/
-
+/*******************************************\
+ ****@author LudingtonRobotics, Team 7160***
+ ****Coders: Jordan Lake, David Scott******* 
+\*******************************************/ 
 package org.usfirst.frc.team7160.robot;
 
 import com.ctre.phoenix.motorcontrol.can.WPI_TalonSRX;
@@ -75,17 +71,26 @@ public class Robot extends IterativeRobot {
 	// Timer object
 	Timer timer = new Timer();
 	// Auton info things
-	String gameData;
-	int step = 1;
+	
+	// Object for getting info from the driverstation/game
 	DriverStation fms = DriverStation.getInstance();
+	// The string used to store the game data pertaining to the location of our switch
+	String gameData;
+	// A double value used to store the time
 	double time;
-	double gyroValue = 0.0;
+	// Height for the switch during auton
 	final double switchHeight = 10.0;
+	// Height for the scale during auton
 	final double scaleHeight = 20.0;
+	// Counter used for the switch statement in left auton
 	int leftAuto = 1;
+	// Counter used for the switch statement in middle auton
+	int middleAuto = 1;
+	// Counter used for the switch statement in right auton
 	int rightAuto = 1;
 	//
-
+	int step = 1;
+	
 	public void robotInit() {
 		// mainDrive.setSafetyEnabled(false);
 		SmartDashboard.putNumber("Gyro", gyro.getAngle());
@@ -126,7 +131,7 @@ public class Robot extends IterativeRobot {
 		SmartDashboard.putNumber("Gyro", Math.round(gyro.getAngle()));
 		time = timer.get();
 		SmartDashboard.putNumber("time: ", time);
-		SmartDashboard.putNumber("step: ", step);
+		lift.set(-liftPID.get());
 		if (!leftAuton.get())
 			leftAuto();
 		else if(!rightAuton.get())
@@ -143,22 +148,52 @@ public class Robot extends IterativeRobot {
 			mainDrive.driveCartesian(0, 0, 0);
 		else
 			mainDrive.driveCartesian(0, .3, 0);
+		switch (middleAuto) {
+		case 1:
+			mainDrive.driveCartesian(0, .3, 0);
+			if(time <= 2) {
+				mainDrive.driveCartesian(0, 0, 0);
+				middleAuto++;
+			}
+			break;
+		case 2:
+			switch (step) {
+			case 1:
+				liftPID.setSetpoint(switchHeight);
+				step++;
+				break;
+			}
+			if(gameData.charAt(0) == 'R')
+				middleAuto = 3;
+			else 
+				middleAuto = 4;
+		case 3:
+			break;
+		case 4:
+			break;
+		}
 	}
 
 	private void rightAuto() {
-		switch (step) {
+		switch (rightAuto) {
 		case 1:
 			mainDrive.driveCartesian(0, .3, 0);
-			if (timer.get() >= 4.5) {
+			if (timer.get() >= 4.5) {//TODO Get the timing correct
 				mainDrive.driveCartesian(0, 0, 0);
 				gyro.reset();
-				step++;
+				rightAuto++;
 
 			}
 			break;
 
 		case 2:
 			if (gameData.charAt(0) == 'R') {
+				switch (step) {
+				case 1:
+					liftPID.setSetpoint(switchHeight);
+					step++;
+					break;
+				}
 				if (gyro.getAngle() >= -70.0)
 					mainDrive.driveCartesian(0, 0, -.3);
 				else
@@ -166,7 +201,7 @@ public class Robot extends IterativeRobot {
 				if (gyro.getAngle() >= -95 && gyro.getAngle() <= -70) {
 					timer.reset();
 					time = 0;
-					step = 3;
+					rightAuto++;
 				}
 			}
 			break;
@@ -180,27 +215,33 @@ public class Robot extends IterativeRobot {
 	}
 
 	private void leftAuto() {
-		switch (step) {
+		switch (leftAuto) {
 		case 1:
 			mainDrive.driveCartesian(0, .3, 0);
-			if (timer.get() >= 4.5) {
+			if (timer.get() >= 4.5) {//TODO Get the timing correct
 				mainDrive.driveCartesian(0, 0, 0);
 				gyro.reset();
-				step++;
+				leftAuto++;
 
 			}
 			break;
 
 		case 2:
 			if (gameData.charAt(0) == 'L') {
+				switch (step) {
+				case 1:
+					liftPID.setSetpoint(switchHeight);
+					step++;
+					break;
+				}
 				if (gyro.getAngle() <= 70.0)
 					mainDrive.driveCartesian(0, 0, .3);
 				else
 					mainDrive.driveCartesian(0, 0, 0);
-				if (gyroValue <= 95 && gyroValue >= 70) {
+				if (gyro.getAngle() <= 95 && gyro.getAngle() >= 70) {
 					timer.reset();
 					time = 0;
-					step = 3;
+					leftAuto++;
 				}
 			}
 			break;
@@ -220,6 +261,7 @@ public class Robot extends IterativeRobot {
 	 * 
 	 * }
 	 */
+	//
 
 	public void teleopPeriodicInit() {
 		gyro.reset();
@@ -228,17 +270,26 @@ public class Robot extends IterativeRobot {
 	}
 
 	public void teleopPeriodic() {
+		
 		SmartDashboard.putNumber("Lift PID", liftPID.get());
+		// Used to slow the acceleration of the lift so it doesn't move to hectectly
 		lift1.configOpenloopRamp(.2, 0);
 		lift2.configOpenloopRamp(.2, 0);
+		//
+		// Speed values for the angle controller on the grabber
 		double grabberAngleDownSpeed = .2;
 		double grabberAngleUpSpeed = .8;
+		//
 		// Drive code
+		// Values to hold the values from the joysticks
 		double x = joy1.getRawAxis(1);
 		double y = joy1.getRawAxis(0);
 		double rot = joy1.getRawAxis(2);
+		//
+		// Speed slower
 		double speed = 4;
-
+		//
+		// Mecanum wheel controller
 		if (joy1.getRawButton(1))
 			speed = 2;
 		if (Math.abs(y) >= 0.3 || Math.abs(x) >= 0.3 || Math.abs(rot) >= 0.3) {
@@ -264,7 +315,6 @@ public class Robot extends IterativeRobot {
 			liftHoldDistance = liftEncoder.getDistance();
 			liftPID.setSetpoint(liftHoldDistance);
 		} else {
-			liftPID.enable();
 			lift.set(-liftPID.get());
 			// lift.set(0);
 		}
@@ -298,7 +348,7 @@ public class Robot extends IterativeRobot {
 		//
 
 	}
-
+	@Override
 	public void testInit() {
 	}
 
