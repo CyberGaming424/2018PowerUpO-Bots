@@ -1,7 +1,7 @@
 /*******************************************\
  ****@author LudingtonRobotics, Team 7160***
  ****Coders: Jordan Lake, David Scott******* 
-\*******************************************/ 
+\*******************************************/
 package org.usfirst.frc.team7160.robot;
 
 import com.ctre.phoenix.motorcontrol.can.WPI_TalonSRX;
@@ -50,7 +50,7 @@ public class Robot extends IterativeRobot {
 	Spark grabber2 = new Spark(1);
 	WPI_VictorSPX grabberAngleController = new WPI_VictorSPX(7);
 	//
-	// Encoder double value 
+	// Encoder double value
 	Encoder liftEncoder = new Encoder(6, 5, false, Encoder.EncodingType.k4X);
 	double liftHoldDistance;
 	//
@@ -71,10 +71,11 @@ public class Robot extends IterativeRobot {
 	// Timer object
 	Timer timer = new Timer();
 	// Auton info things
-	
+
 	// Object for getting info from the driverstation/game
 	DriverStation fms = DriverStation.getInstance();
-	// The string used to store the game data pertaining to the location of our switch
+	// The string used to store the game data pertaining to the location of our
+	// switch
 	String gameData;
 	// A double value used to store the time
 	double time;
@@ -90,7 +91,11 @@ public class Robot extends IterativeRobot {
 	int rightAuto = 1;
 	//
 	int step = 1;
-	
+	//
+	// Testing
+	Encoder grabberEncoder = new Encoder(6, 7, false, Encoder.EncodingType.k4X);
+	PIDController grabberPID = new PIDController(.005, 0, 0, grabberEncoder, grabberAngleController);
+
 	public void robotInit() {
 		// mainDrive.setSafetyEnabled(false);
 		SmartDashboard.putNumber("Gyro", gyro.getAngle());
@@ -120,21 +125,18 @@ public class Robot extends IterativeRobot {
 	}
 
 	public void autonomousPeriodic() {
-		/*if (gyro.getAngle() >= 0.0) {
-			gyroValue = gyro.getAngle();
-		} else if (gyro.getAngle() < 0.0) {
-			gyroValue = 360 + gyro.getAngle();
-		}
-		if (gyroValue >= 360 || gyroValue <= 0.0) {
-			gyro.reset();
-		}*/
+		/*
+		 * if (gyro.getAngle() >= 0.0) { gyroValue = gyro.getAngle(); } else if
+		 * (gyro.getAngle() < 0.0) { gyroValue = 360 + gyro.getAngle(); } if (gyroValue
+		 * >= 360 || gyroValue <= 0.0) { gyro.reset(); }
+		 */
 		SmartDashboard.putNumber("Gyro", Math.round(gyro.getAngle()));
 		time = timer.get();
 		SmartDashboard.putNumber("time: ", time);
 		lift.set(-liftPID.get());
 		if (!leftAuton.get())
 			leftAuto();
-		else if(!rightAuton.get())
+		else if (!rightAuton.get())
 			rightAuto();
 		else
 			middleAuto();
@@ -144,14 +146,14 @@ public class Robot extends IterativeRobot {
 	// Auton functions
 
 	private void middleAuto() {
-		if (timer.get() >= 3) 
+		if (timer.get() >= 3)
 			mainDrive.driveCartesian(0, 0, 0);
 		else
 			mainDrive.driveCartesian(0, .3, 0);
 		switch (middleAuto) {
 		case 1:
 			mainDrive.driveCartesian(0, .3, 0);
-			if(time <= 2) {
+			if (timer.get() >= 2) {
 				mainDrive.driveCartesian(0, 0, 0);
 				middleAuto++;
 			}
@@ -163,9 +165,9 @@ public class Robot extends IterativeRobot {
 				step++;
 				break;
 			}
-			if(gameData.charAt(0) == 'R')
+			if (gameData.charAt(0) == 'R')
 				middleAuto = 3;
-			else 
+			else
 				middleAuto = 4;
 		case 3:
 			break;
@@ -178,7 +180,7 @@ public class Robot extends IterativeRobot {
 		switch (rightAuto) {
 		case 1:
 			mainDrive.driveCartesian(0, .3, 0);
-			if (timer.get() >= 4.5) {//TODO Get the timing correct
+			if (timer.get() >= 4.5) {// TODO Get the timing correct
 				mainDrive.driveCartesian(0, 0, 0);
 				gyro.reset();
 				rightAuto++;
@@ -198,7 +200,7 @@ public class Robot extends IterativeRobot {
 					mainDrive.driveCartesian(0, 0, -.3);
 				else
 					mainDrive.driveCartesian(0, 0, 0);
-				if (gyro.getAngle() >= -95 && gyro.getAngle() <= -70) {
+				if (gyro.getAngle() >= -95 && gyro.getAngle() <= -70) {//TODO May have to change these angles
 					timer.reset();
 					time = 0;
 					rightAuto++;
@@ -218,7 +220,7 @@ public class Robot extends IterativeRobot {
 		switch (leftAuto) {
 		case 1:
 			mainDrive.driveCartesian(0, .3, 0);
-			if (timer.get() >= 4.5) {//TODO Get the timing correct
+			if (timer.get() >= 4.5) {// TODO Get the timing correct
 				mainDrive.driveCartesian(0, 0, 0);
 				gyro.reset();
 				leftAuto++;
@@ -238,7 +240,7 @@ public class Robot extends IterativeRobot {
 					mainDrive.driveCartesian(0, 0, .3);
 				else
 					mainDrive.driveCartesian(0, 0, 0);
-				if (gyro.getAngle() <= 95 && gyro.getAngle() >= 70) {
+				if (gyro.getAngle() <= 95 && gyro.getAngle() >= 70) {//TODO May have to change these angles
 					timer.reset();
 					time = 0;
 					leftAuto++;
@@ -267,11 +269,20 @@ public class Robot extends IterativeRobot {
 		gyro.reset();
 		liftHoldDistance = 0.0;
 		liftEncoder.reset();
+		grabberPID.enable();
+		grabberPID.reset();
 	}
 
 	public void teleopPeriodic() {
-		
-		SmartDashboard.putNumber("Lift PID", liftPID.get());
+		testPeriodic();
+	}
+
+	@Override
+	public void testInit() {
+	}
+
+	@Override
+	public void testPeriodic() {
 		// Used to slow the acceleration of the lift so it doesn't move to hectectly
 		lift1.configOpenloopRamp(.2, 0);
 		lift2.configOpenloopRamp(.2, 0);
@@ -285,6 +296,7 @@ public class Robot extends IterativeRobot {
 		double x = joy1.getRawAxis(1);
 		double y = joy1.getRawAxis(0);
 		double rot = joy1.getRawAxis(2);
+		SmartDashboard.putNumber("Lift PID", liftPID.get());
 		//
 		// Speed slower
 		double speed = 4;
@@ -330,13 +342,16 @@ public class Robot extends IterativeRobot {
 			grabber.set(grabberIn);
 		else
 			grabber.set(0);
-		
+
 		if (joy2.getRawButton(3)) {
 			grabberAngleController.set(-grabberAngleDownSpeed);
+			grabberPID.setSetpoint(grabberEncoder.getDistance());
 		} else if (joy2.getRawButton(4)) {
 			grabberAngleController.set(grabberAngleUpSpeed);
+			grabberPID.setSetpoint(grabberEncoder.getDistance());
 		} else {
-			grabberAngleController.set(0);
+			//grabberAngleController.set(0);
+			grabberAngleController.set(grabberPID.get());
 		}
 
 		//
@@ -346,14 +361,6 @@ public class Robot extends IterativeRobot {
 		 * if(joy1.getRawButton(3)) lock.set(.3); else lock.set(0);
 		 */
 		//
-
-	}
-	@Override
-	public void testInit() {
-	}
-
-	@Override
-	public void testPeriodic() {
 
 	}
 }
